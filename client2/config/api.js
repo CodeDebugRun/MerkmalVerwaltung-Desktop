@@ -2,9 +2,12 @@
 
 export const API_CONFIG = {
   // Base URL for backend API
-  BASE_URL: process.env.NODE_ENV === 'production'
-    ? process.env.NEXT_PUBLIC_API_URL || 'https://your-production-api.com/api'
-    : 'http://localhost:3001/api',
+  // For desktop app, always use localhost:3001 regardless of NODE_ENV
+  BASE_URL: (typeof window !== 'undefined' && window.location.protocol === 'file:')
+    ? 'http://localhost:3001/api'  // Desktop app (file:// protocol)
+    : process.env.NODE_ENV === 'production'
+      ? process.env.NEXT_PUBLIC_API_URL || 'https://your-production-api.com/api'
+      : 'http://localhost:3001/api',
 
   // API endpoints
   ENDPOINTS: {
