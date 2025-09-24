@@ -7,6 +7,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getVersion: () => process.versions.electron,
   getPlatform: () => process.platform,
 
+  // Database configuration APIs
+  getDatabaseConfig: () => ipcRenderer.invoke('get-database-config'),
+  saveDatabaseConfig: (config) => ipcRenderer.invoke('save-database-config', config),
+  testDatabaseConnection: (config) => ipcRenderer.invoke('test-database-connection', config),
+
   // Example: if you need to communicate with main process
   // sendMessage: (message) => ipcRenderer.invoke('message', message),
   // onMessage: (callback) => ipcRenderer.on('message', callback)

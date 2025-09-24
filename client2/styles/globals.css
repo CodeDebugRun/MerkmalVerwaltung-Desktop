@@ -1190,3 +1190,142 @@ a {
     width: 100%;
   }
 }
+
+/* Database Settings Styles */
+.settings-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 20px;
+}
+
+.settings-tabs .tab {
+  background: none;
+  border: none;
+  padding: 12px 20px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-weight: 500;
+  transition: all 0.2s ease;
+  border-bottom: 2px solid transparent;
+}
+
+.settings-tabs .tab:hover {
+  color: var(--text-primary);
+  background-color: var(--hover-bg);
+}
+
+.settings-tabs .tab.active {
+  color: #3b82f6;
+  border-bottom-color: #3b82f6;
+}
+
+.database-settings {
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 10px;
+}
+
+.setting-group {
+  margin-bottom: 24px;
+  padding: 16px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.setting-group h4 {
+  margin-bottom: 16px;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.setting-row {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 12px;
+}
+
+.setting-row label {
+  margin-bottom: 6px;
+  font-weight: 500;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.setting-input {
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.setting-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.setting-input::placeholder {
+  color: var(--text-muted);
+}
+
+.test-connection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.test-result {
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-weight: 500;
+  animation: slideIn 0.3s ease-out;
+}
+
+.test-result.success {
+  background-color: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.test-result.error {
+  background-color: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+[data-theme="dark"] .test-result.success {
+  background-color: #14532d;
+  color: #bbf7d0;
+  border-color: #166534;
+}
+
+[data-theme="dark"] .test-result.error {
+  background-color: #7f1d1d;
+  color: #fecaca;
+  border-color: #dc2626;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.settings-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-color);
+  margin-top: 20px;
+}

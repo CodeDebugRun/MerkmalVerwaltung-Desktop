@@ -3,12 +3,45 @@
   "version": "1.0.0",
   "description": "Merkmal Verwaltung Desktop Application",
   "main": "main.js",
+  "homepage": "./",
   "scripts": {
     "electron": "electron .",
     "start": "electron .",
     "dev": "electron . --dev",
     "build": "electron-builder",
-    "build-win": "electron-builder --win"
+    "build-win": "electron-builder --win --publish=never"
+  },
+  "build": {
+    "appId": "com.desktop.merkmalverwaltung",
+    "productName": "Merkmal Verwaltung",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "package.json",
+      "client2/out/**/*",
+      "server/**/*",
+      "!server/node_modules/.cache/**/*",
+      "!**/*.map"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "publish": null,
+      "sign": null
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
   },
   "devDependencies": {
     "electron": "^26.0.0",
