@@ -3,6 +3,8 @@ const nextConfig = {
   reactStrictMode: true,
   output: 'export',
   trailingSlash: true,
+  assetPrefix: './',
+  basePath: '',
   images: {
     unoptimized: true
   },
