@@ -35,12 +35,19 @@ function createWindow() {
   // Create application menu
   createApplicationMenu();
 
-  // Load the app
-  const startUrl = isDev
-    ? `http://localhost:${CLIENT_PORT}`
-    : `file://${path.join(__dirname, 'client2/out/index.html')}`;
-
-  mainWindow.loadURL(startUrl);
+  // Load the app - Works for both local and network drives
+  if (isDev) {
+    mainWindow.loadURL(`http://localhost:${CLIENT_PORT}`);
+  } else {
+    // Use loadFile for better compatibility (works on both local and network drives)
+    const indexPath = path.join(__dirname, 'client2', 'out', 'index.html');
+    console.log('Loading index from:', indexPath);
+    mainWindow.loadFile(indexPath).catch(err => {
+      console.error('Failed to load index.html:', err);
+      // Fallback to URL method if loadFile fails
+      mainWindow.loadURL(`file://${indexPath}`);
+    });
+  }
 
   // Don't open DevTools automatically
 
@@ -190,19 +197,69 @@ function createApplicationMenu() {
 function startBackendServer() {
   console.log('Starting backend server...');
 
-  // Start the Express server
-  const serverScript = path.join(__dirname, 'server/src/server.js');
+  // In production, use Electron's Node.js runtime
+  // In development, use system Node.js
+  if (isDev) {
+    // Development mode - use regular node
+    serverProcess = spawn('node', ['src/server.js'], {
+      env: {
+        ...process.env,
+        NODE_ENV: 'development',
+        PORT: SERVER_PORT,
+        ENABLE_HTTPS: 'false'
+      },
+      cwd: path.join(__dirname, 'server'),
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+  } else {
+    // Production mode - use Electron's built-in Node.js
+    const { fork } = require('child_process');
+    const serverPath = path.join(__dirname, 'server', 'src', 'server.js');
 
-  serverProcess = spawn('node', ['src/server.js'], {
-    env: {
-      ...process.env,
-      NODE_ENV: isDev ? 'development' : 'production',
-      PORT: SERVER_PORT,
-      ENABLE_HTTPS: 'false'
-    },
-    cwd: path.join(__dirname, 'server'),
-    stdio: ['pipe', 'pipe', 'pipe']
-  });
+    serverProcess = fork(serverPath, [], {
+      env: {
+        ...process.env,
+        NODE_ENV: 'production',
+        PORT: SERVER_PORT,
+        ENABLE_HTTPS: 'false',
+        ELECTRON_RUN_AS_NODE: '1'
+      },
+      silent: true
+    });
+
+    // Handle output in production
+    if (serverProcess.stdout) {
+      serverProcess.stdout.on('data', (data) => {
+        const cleanedData = data.toString()
+          .replace(/[\u{1F000}-\u{1F9FF}]|[\u{2600}-\u{26FF}]/gu, '')
+          .replace(/[^\x00-\x7F]/g, (char) => {
+            const replacements = {
+              'ü': 'ue', 'ö': 'oe', 'ä': 'ae', 'Ü': 'Ue', 'Ö': 'Oe', 'Ä': 'Ae',
+              'ş': 's', 'ı': 'i', 'ğ': 'g', 'Ş': 'S', 'İ': 'I', 'Ğ': 'G',
+              'ç': 'c', 'Ç': 'C'
+            };
+            return replacements[char] || '';
+          });
+        console.log(`[SERVER] ${cleanedData.trim()}`);
+      });
+    }
+
+    if (serverProcess.stderr) {
+      serverProcess.stderr.on('data', (data) => {
+        console.error(`[SERVER ERROR] ${data}`);
+      });
+    }
+
+    serverProcess.on('error', (error) => {
+      console.error('Failed to start server:', error);
+    });
+
+    serverProcess.on('close', (code) => {
+      console.log(`Server process exited with code ${code}`);
+    });
+
+    return; // Exit early for production
+  }
 
   serverProcess.stdout.on('data', (data) => {
     // Remove emoji characters for better Windows terminal compatibility
@@ -247,6 +304,13 @@ app.commandLine.appendSwitch('ignore-ssl-errors', 'true');
 app.commandLine.appendSwitch('allow-insecure-localhost', 'true');
 app.commandLine.appendSwitch('disable-web-security');
 app.commandLine.appendSwitch('allow-running-insecure-content', 'true');
+
+// Disable GPU for network drive compatibility
+app.commandLine.appendSwitch('disable-gpu');
+app.commandLine.appendSwitch('disable-gpu-sandbox');
+app.commandLine.appendSwitch('no-sandbox');
+app.commandLine.appendSwitch('disable-software-rasterizer');
+app.commandLine.appendSwitch('disable-dev-shm-usage');
 
 // App event listeners
 app.whenReady().then(() => {
