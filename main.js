@@ -6,6 +6,24 @@ const fs = require('fs').promises;
 // Check if we're in development mode
 const isDev = process.env.NODE_ENV === 'development' || process.argv.includes('--dev');
 
+// Set command line switches before app is ready
+// These must be set after app is imported but before any other operations
+if (app && app.commandLine) {
+  // Disable certificate errors and SSL verification
+  app.commandLine.appendSwitch('ignore-certificate-errors', 'true');
+  app.commandLine.appendSwitch('ignore-ssl-errors', 'true');
+  app.commandLine.appendSwitch('allow-insecure-localhost', 'true');
+  app.commandLine.appendSwitch('disable-web-security');
+  app.commandLine.appendSwitch('allow-running-insecure-content', 'true');
+
+  // Disable GPU for network drive compatibility
+  app.commandLine.appendSwitch('disable-gpu');
+  app.commandLine.appendSwitch('disable-gpu-sandbox');
+  app.commandLine.appendSwitch('no-sandbox');
+  app.commandLine.appendSwitch('disable-software-rasterizer');
+  app.commandLine.appendSwitch('disable-dev-shm-usage');
+}
+
 // Keep a global reference of the window object
 let mainWindow;
 let serverProcess;
@@ -297,20 +315,6 @@ function stopBackendServer() {
     serverProcess = null;
   }
 }
-
-// Disable certificate errors and SSL verification
-app.commandLine.appendSwitch('ignore-certificate-errors', 'true');
-app.commandLine.appendSwitch('ignore-ssl-errors', 'true');
-app.commandLine.appendSwitch('allow-insecure-localhost', 'true');
-app.commandLine.appendSwitch('disable-web-security');
-app.commandLine.appendSwitch('allow-running-insecure-content', 'true');
-
-// Disable GPU for network drive compatibility
-app.commandLine.appendSwitch('disable-gpu');
-app.commandLine.appendSwitch('disable-gpu-sandbox');
-app.commandLine.appendSwitch('no-sandbox');
-app.commandLine.appendSwitch('disable-software-rasterizer');
-app.commandLine.appendSwitch('disable-dev-shm-usage');
 
 // App event listeners
 app.whenReady().then(() => {

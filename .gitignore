@@ -11,6 +11,8 @@ dist-manual/
 .env.local
 .env.production
 .env.staging
+.env.development
+server/.env.development
 
 # Logs
 *.log
@@ -26,3 +28,6 @@ Thumbs.db
 
 # Lock files (optional - you might want to track these)
 package-lock.json
+
+# Deployment scripts
+start-app.bat
