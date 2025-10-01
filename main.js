@@ -140,8 +140,20 @@ function createApplicationMenu() {
         {
           label: 'About',
           click: () => {
-            // You can show an about dialog here
-            console.log('Merkmal Verwaltung v1.0.0');
+            const { dialog } = require('electron');
+            dialog.showMessageBox(mainWindow, {
+              type: 'info',
+              title: 'Über Merkmal Verwaltung',
+              message: 'Merkmal Verwaltung v1.0.0',
+              detail: 'Eine Desktop-Anwendung zur Verwaltung von Produktmerkmalen.\n\n' +
+                     'Funktionen:\n' +
+                     '• Merkmalverwaltung für Produkte\n' +
+                     '• Datenbankverbindung zu SQL Server\n' +
+                     '• Benutzerfreundliche Oberfläche\n' +
+                     '• Sichere Datenverwaltung\n\n' +
+                     '© 2025 Lebodoors',
+              buttons: ['OK']
+            });
           }
         }
       ]
