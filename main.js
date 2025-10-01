@@ -1,8 +1,10 @@
-const { app, BrowserWindow, Menu, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, session } = require('electron');
 const path = require('path');
-const isDev = require('electron-is-dev');
 const { spawn } = require('child_process');
 const fs = require('fs').promises;
+
+// Check if we're in development mode
+const isDev = process.env.NODE_ENV === 'development' || process.argv.includes('--dev');
 
 // Keep a global reference of the window object
 let mainWindow;
@@ -21,16 +23,17 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       enableRemoteModule: false,
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, 'preload.js'),
+      // Disable security for local development
+      webSecurity: false,
+      allowRunningInsecureContent: true
     },
     icon: path.join(__dirname, 'assets/icon.png'), // Add your icon
     title: 'Merkmal Verwaltung'
   });
 
-  // Remove menu bar in production
-  if (!isDev) {
-    Menu.setApplicationMenu(null);
-  }
+  // Create application menu
+  createApplicationMenu();
 
   // Load the app
   const startUrl = isDev
@@ -39,33 +42,174 @@ function createWindow() {
 
   mainWindow.loadURL(startUrl);
 
-  // Open DevTools in development
-  if (isDev) {
-    mainWindow.webContents.openDevTools();
-  }
+  // Don't open DevTools automatically
 
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
 }
 
+function createApplicationMenu() {
+  const template = [
+    {
+      label: 'File',
+      submenu: [
+        {
+          label: 'Reload',
+          accelerator: 'CmdOrCtrl+R',
+          click: () => {
+            if (mainWindow) {
+              mainWindow.reload();
+            }
+          }
+        },
+        {
+          type: 'separator'
+        },
+        {
+          label: 'Exit',
+          accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Ctrl+Q',
+          click: () => {
+            app.quit();
+          }
+        }
+      ]
+    },
+    {
+      label: 'View',
+      submenu: [
+        {
+          label: 'Toggle Developer Tools',
+          accelerator: 'F12',
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.toggleDevTools();
+            }
+          }
+        },
+        {
+          label: 'Open Console',
+          accelerator: 'CmdOrCtrl+Shift+I',
+          click: () => {
+            if (mainWindow) {
+              if (mainWindow.webContents.isDevToolsOpened()) {
+                mainWindow.webContents.closeDevTools();
+              } else {
+                mainWindow.webContents.openDevTools();
+              }
+            }
+          }
+        },
+        {
+          type: 'separator'
+        },
+        {
+          label: 'Zoom In',
+          accelerator: 'CmdOrCtrl+Plus',
+          click: () => {
+            if (mainWindow) {
+              const currentZoom = mainWindow.webContents.getZoomLevel();
+              mainWindow.webContents.setZoomLevel(currentZoom + 1);
+            }
+          }
+        },
+        {
+          label: 'Zoom Out',
+          accelerator: 'CmdOrCtrl+-',
+          click: () => {
+            if (mainWindow) {
+              const currentZoom = mainWindow.webContents.getZoomLevel();
+              mainWindow.webContents.setZoomLevel(currentZoom - 1);
+            }
+          }
+        },
+        {
+          label: 'Reset Zoom',
+          accelerator: 'CmdOrCtrl+0',
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.setZoomLevel(0);
+            }
+          }
+        }
+      ]
+    },
+    {
+      label: 'Help',
+      submenu: [
+        {
+          label: 'About',
+          click: () => {
+            // You can show an about dialog here
+            console.log('Merkmal Verwaltung v1.0.0');
+          }
+        }
+      ]
+    }
+  ];
+
+  // On macOS, add application menu
+  if (process.platform === 'darwin') {
+    template.unshift({
+      label: app.getName(),
+      submenu: [
+        {
+          label: 'About ' + app.getName(),
+          role: 'about'
+        },
+        {
+          type: 'separator'
+        },
+        {
+          label: 'Quit',
+          accelerator: 'Cmd+Q',
+          click: () => {
+            app.quit();
+          }
+        }
+      ]
+    });
+  }
+
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
+}
+
 function startBackendServer() {
   console.log('Starting backend server...');
 
   // Start the Express server
-  const serverScript = path.join(__dirname, 'server/src/app.js');
+  const serverScript = path.join(__dirname, 'server/src/server.js');
 
-  serverProcess = spawn('node', [serverScript], {
+  serverProcess = spawn('node', ['src/server.js'], {
     env: {
       ...process.env,
       NODE_ENV: isDev ? 'development' : 'production',
-      PORT: SERVER_PORT
+      PORT: SERVER_PORT,
+      ENABLE_HTTPS: 'false'
     },
+    cwd: path.join(__dirname, 'server'),
     stdio: ['pipe', 'pipe', 'pipe']
   });
 
   serverProcess.stdout.on('data', (data) => {
-    console.log(`[SERVER] ${data}`);
+    // Remove emoji characters for better Windows terminal compatibility
+    const cleanedData = data.toString()
+      .replace(/[\u{1F000}-\u{1F9FF}]|[\u{2600}-\u{26FF}]/gu, '') // Remove emojis
+      .replace(/[^\x00-\x7F]/g, (char) => {
+        // Replace special characters with their ASCII equivalents
+        const replacements = {
+          'ü': 'ue', 'ö': 'oe', 'ä': 'ae', 'Ü': 'Ue', 'Ö': 'Oe', 'Ä': 'Ae',
+          'ş': 's', 'ı': 'i', 'ğ': 'g', 'Ş': 'S', 'İ': 'I', 'Ğ': 'G',
+          'ç': 'c', 'Ç': 'C', '─': '-', '│': '|', '├': '+', '└': 'L',
+          '≡': '=', '∩': 'n', '╕': '+', '╗': '+', '╝': '+', '╚': 'L',
+          '╔': '+', '║': '|', '╣': '+', '╬': '+', '╩': '+', '╦': '+',
+          '╠': '+', '═': '=', 'ñ': 'n', 'á': 'a', 'é': 'e', 'í': 'i',
+          'ó': 'o', 'ú': 'u', 'ß': 'ss'
+        };
+        return replacements[char] || '';
+      });
+    console.log(`[SERVER] ${cleanedData.trim()}`);
   });
 
   serverProcess.stderr.on('data', (data) => {
@@ -85,8 +229,21 @@ function stopBackendServer() {
   }
 }
 
+// Disable certificate errors and SSL verification
+app.commandLine.appendSwitch('ignore-certificate-errors', 'true');
+app.commandLine.appendSwitch('ignore-ssl-errors', 'true');
+app.commandLine.appendSwitch('allow-insecure-localhost', 'true');
+app.commandLine.appendSwitch('disable-web-security');
+app.commandLine.appendSwitch('allow-running-insecure-content', 'true');
+
 // App event listeners
 app.whenReady().then(() => {
+  // Disable SSL certificate verification for all sessions
+  session.defaultSession.setCertificateVerifyProc((_request, callback) => {
+    // Always allow certificates (development only)
+    callback(0);
+  });
+
   // Start backend server first
   startBackendServer();
 
@@ -218,12 +375,12 @@ async function testDatabaseConnection(dbConfig) {
         });
     `;
 
-    // Write test script to temporary file
-    const testScriptPath = path.join(__dirname, 'temp-db-test.js');
+    // Write test script to temporary file in server directory
+    const testScriptPath = path.join(__dirname, 'server', 'temp-db-test.js');
     require('fs').writeFileSync(testScriptPath, testScript);
 
     // Execute test script
-    const testProcess = spawn('node', [testScriptPath], {
+    const testProcess = spawn('node', ['temp-db-test.js'], {
       cwd: path.join(__dirname, 'server'),
       stdio: ['pipe', 'pipe', 'pipe']
     });
