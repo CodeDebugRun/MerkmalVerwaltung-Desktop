@@ -186,11 +186,6 @@ function startBackendServer() {
       ...process.env,
       NODE_ENV: isDev ? 'development' : 'production',
       PORT: SERVER_PORT,
-      DB_HOST: 'localhost',
-      DB_NAME: 'LebodoorsDB',
-      DB_PORT: '1433',
-      DB_USER: 'LeboUser01',
-      DB_PASSWORD: '21080504Ae',
       ENABLE_HTTPS: 'false'
     },
     cwd: path.join(__dirname, 'server'),
