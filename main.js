@@ -231,8 +231,10 @@ function startBackendServer() {
     });
   } else {
     // Production mode - use Electron's built-in Node.js
+    console.log('[MAIN] Starting backend server in production mode...');
     const { fork } = require('child_process');
     const serverPath = path.join(__dirname, 'server', 'src', 'server.js');
+    console.log('[MAIN] Server path:', serverPath);
 
     serverProcess = fork(serverPath, [], {
       env: {
@@ -269,11 +271,14 @@ function startBackendServer() {
     }
 
     serverProcess.on('error', (error) => {
-      console.error('Failed to start server:', error);
+      console.error('[MAIN] Failed to start server:', error);
     });
 
     serverProcess.on('close', (code) => {
-      console.log(`Server process exited with code ${code}`);
+      console.log(`[MAIN] Server process exited with code ${code}`);
+      if (code !== 0) {
+        console.error('[MAIN] Server crashed! Check server logs.');
+      }
     });
 
     return; // Exit early for production
@@ -415,98 +420,27 @@ async function saveDatabaseConfig(dbConfig) {
   }
 }
 
-// Test database connection
+// Test database connection (simplified version - only validates form input)
 async function testDatabaseConnection(dbConfig) {
-  return new Promise((resolve) => {
-    // Create a test script that tries to connect to the database
-    const testScript = `
-      const sql = require('mssql');
+  // Form validasyonu
+  if (!dbConfig.host || !dbConfig.database || !dbConfig.port) {
+    return {
+      success: false,
+      message: 'Bitte füllen Sie alle Pflichtfelder aus (Server, Datenbank, Port)'
+    };
+  }
 
-      const config = {
-        server: '${dbConfig.host}',
-        database: '${dbConfig.database}',
-        port: parseInt('${dbConfig.port}'),
-        connectionTimeout: 5000,
-        requestTimeout: 5000,
-        options: {
-          encrypt: false,
-          trustServerCertificate: true,
-          enableArithAbort: true
-        }
-      };
+  if (!dbConfig.useWindowsAuth && (!dbConfig.user || !dbConfig.password)) {
+    return {
+      success: false,
+      message: 'Bitte geben Sie Benutzername und Passwort ein'
+    };
+  }
 
-      if (${dbConfig.useWindowsAuth}) {
-        config.options.trustedConnection = true;
-      } else {
-        config.user = '${dbConfig.user}';
-        config.password = '${dbConfig.password}';
-        config.options.trustedConnection = false;
-      }
-
-      sql.connect(config)
-        .then(pool => {
-          console.log('SUCCESS: Database connection successful');
-          pool.close();
-          process.exit(0);
-        })
-        .catch(err => {
-          console.log('ERROR: ' + err.message);
-          process.exit(1);
-        });
-    `;
-
-    // Write test script to temporary file in server directory
-    const testScriptPath = path.join(__dirname, 'server', 'temp-db-test.js');
-    require('fs').writeFileSync(testScriptPath, testScript);
-
-    // Execute test script
-    const testProcess = spawn('node', ['temp-db-test.js'], {
-      cwd: path.join(__dirname, 'server'),
-      stdio: ['pipe', 'pipe', 'pipe']
-    });
-
-    let output = '';
-    let errorOutput = '';
-
-    testProcess.stdout.on('data', (data) => {
-      output += data.toString();
-    });
-
-    testProcess.stderr.on('data', (data) => {
-      errorOutput += data.toString();
-    });
-
-    testProcess.on('close', (code) => {
-      // Clean up test script
-      try {
-        require('fs').unlinkSync(testScriptPath);
-      } catch (cleanupError) {
-        console.log('Failed to cleanup test script:', cleanupError.message);
-      }
-
-      if (code === 0 && output.includes('SUCCESS')) {
-        resolve({
-          success: true,
-          message: 'Datenbankverbindung erfolgreich!'
-        });
-      } else {
-        const errorMessage = errorOutput || output || 'Unbekannter Verbindungsfehler';
-        resolve({
-          success: false,
-          message: 'Verbindung fehlgeschlagen: ' + errorMessage.replace('ERROR: ', '').trim()
-        });
-      }
-    });
-
-    // Timeout after 10 seconds
-    setTimeout(() => {
-      testProcess.kill();
-      resolve({
-        success: false,
-        message: 'Verbindungstest-Timeout (10 Sekunden)'
-      });
-    }, 10000);
-  });
+  return {
+    success: true,
+    message: 'Konfiguration gültig. Bitte speichern Sie die Einstellungen und starten Sie die Anwendung neu.'
+  };
 }
 
 // IPC Handlers

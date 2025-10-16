@@ -48,6 +48,98 @@ app.get('/db-test', async (req, res) => {
   }
 });
 
+// Test database connection with custom config
+app.post('/api/test-db-connection', async (req, res) => {
+  const sql = require('mssql');
+  const dbConfig = req.body;
+
+  console.log('[TEST-DB] Testing connection with config:', {
+    ...dbConfig,
+    password: dbConfig.password ? '***' : undefined
+  });
+
+  // Validate required fields
+  if (!dbConfig.host || !dbConfig.database || !dbConfig.port) {
+    return res.status(400).json({
+      success: false,
+      message: 'Bitte füllen Sie alle Pflichtfelder aus (Server, Datenbank, Port)'
+    });
+  }
+
+  if (!dbConfig.useWindowsAuth && (!dbConfig.user || !dbConfig.password)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Bitte geben Sie Benutzername und Passwort ein'
+    });
+  }
+
+  // Create connection configuration
+  const config = {
+    server: dbConfig.host,
+    database: dbConfig.database,
+    port: parseInt(dbConfig.port),
+    connectionTimeout: 15000, // 15 seconds
+    requestTimeout: 15000,
+    pool: {
+      max: 1,
+      min: 0,
+      idleTimeoutMillis: 30000
+    },
+    options: {
+      encrypt: false,
+      trustServerCertificate: true,
+      enableArithAbort: true
+    }
+  };
+
+  // Set authentication type
+  if (dbConfig.useWindowsAuth) {
+    config.options.trustedConnection = true;
+  } else {
+    config.user = dbConfig.user;
+    config.password = dbConfig.password;
+    config.options.trustedConnection = false;
+  }
+
+  let testPool = null;
+
+  try {
+    // Try to connect
+    console.log('[TEST-DB] Attempting connection...');
+    testPool = new sql.ConnectionPool(config);
+    await testPool.connect();
+
+    console.log('[TEST-DB] Connection successful!');
+
+    // Test with a simple query
+    const result = await testPool.request().query('SELECT 1 as test');
+
+    // Close the test connection
+    await testPool.close();
+
+    res.json({
+      success: true,
+      message: 'Datenbankverbindung erfolgreich!'
+    });
+  } catch (err) {
+    console.error('[TEST-DB] Connection failed:', err.message);
+
+    // Make sure to close connection on error
+    if (testPool) {
+      try {
+        await testPool.close();
+      } catch (closeErr) {
+        console.error('[TEST-DB] Error closing connection:', closeErr.message);
+      }
+    }
+
+    res.status(400).json({
+      success: false,
+      message: 'Verbindung fehlgeschlagen: ' + err.message
+    });
+  }
+});
+
 // API-Routen mit /api Präfix verwenden
 app.use('/api', merkmalstexteRoutes);
 app.use('/api/grouped', groupedRoutes);
