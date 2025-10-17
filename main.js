@@ -32,6 +32,12 @@ let serverProcess;
 const SERVER_PORT = 3001;
 const CLIENT_PORT = 3000;
 
+// Configuration management - moved here to be available in startBackendServer
+// In production, save config next to the executable for persistence
+const CONFIG_FILE = app.isPackaged
+  ? path.join(path.dirname(app.getPath('exe')), 'config.json')
+  : path.join(__dirname, 'config.json');
+
 function createWindow() {
   // Create the browser window
   mainWindow = new BrowserWindow({
@@ -242,7 +248,8 @@ function startBackendServer() {
         NODE_ENV: 'production',
         PORT: SERVER_PORT,
         ENABLE_HTTPS: 'false',
-        ELECTRON_RUN_AS_NODE: '1'
+        ELECTRON_RUN_AS_NODE: '1',
+        CONFIG_PATH: CONFIG_FILE
       },
       silent: true
     });
@@ -322,12 +329,21 @@ function stopBackendServer() {
 }
 
 // App event listeners
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Disable SSL certificate verification for all sessions
   session.defaultSession.setCertificateVerifyProc((_request, callback) => {
     // Always allow certificates (development only)
     callback(0);
   });
+
+  // IMPORTANT: Load config BEFORE starting backend
+  // This ensures backend can read the config file
+  try {
+    await loadDatabaseConfig();
+    console.log('[MAIN] Initial config loaded/created');
+  } catch (error) {
+    console.log('[MAIN] Config initialization error:', error);
+  }
 
   // Start backend server first
   startBackendServer();
@@ -366,11 +382,6 @@ process.on('SIGTERM', () => {
   app.quit();
 });
 
-// Configuration management
-// In production, save config next to the executable for persistence
-const CONFIG_FILE = app.isPackaged
-  ? path.join(path.dirname(app.getPath('exe')), 'config.json')
-  : path.join(__dirname, 'config.json');
 
 // Default database configuration
 const DEFAULT_DB_CONFIG = {
@@ -380,6 +391,13 @@ const DEFAULT_DB_CONFIG = {
   user: '',
   password: '',
   useWindowsAuth: true
+};
+
+// Default API configuration
+const DEFAULT_API_CONFIG = {
+  host: 'localhost',
+  port: '3001',
+  useSSL: false
 };
 
 // Load configuration from file
@@ -395,6 +413,23 @@ async function loadDatabaseConfig() {
     console.log('[MAIN] Config file not found at:', CONFIG_FILE);
     console.log('[MAIN] Using default configuration');
     return DEFAULT_DB_CONFIG;
+  }
+}
+
+// Load API configuration
+async function loadApiConfig() {
+  try {
+    const configData = await fs.readFile(CONFIG_FILE, 'utf8');
+    const config = JSON.parse(configData);
+    // Backend ALWAYS runs locally in Electron app
+    // Never use database host for API
+    return {
+      ...DEFAULT_API_CONFIG,
+      host: 'localhost', // Always localhost for Electron app
+      port: '3001'
+    };
+  } catch (error) {
+    return DEFAULT_API_CONFIG;
   }
 }
 
@@ -470,9 +505,30 @@ ipcMain.handle('get-database-config', async () => {
   }
 });
 
+ipcMain.handle('get-api-config', async () => {
+  try {
+    return await loadApiConfig();
+  } catch (error) {
+    console.error('Failed to load API config:', error);
+    return DEFAULT_API_CONFIG;
+  }
+});
+
 ipcMain.handle('save-database-config', async (event, config) => {
   try {
-    return await saveDatabaseConfig(config);
+    const result = await saveDatabaseConfig(config);
+
+    // IMPORTANT: Restart backend with new config
+    console.log('[MAIN] Config saved, restarting backend server...');
+    stopBackendServer();
+
+    // Wait a bit for server to fully stop
+    setTimeout(() => {
+      startBackendServer();
+      console.log('[MAIN] Backend server restarted with new config');
+    }, 1000);
+
+    return result;
   } catch (error) {
     throw error;
   }

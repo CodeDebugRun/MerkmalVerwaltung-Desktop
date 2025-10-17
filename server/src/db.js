@@ -10,7 +10,14 @@ function loadDatabaseConfig() {
 
   // Try multiple possible locations for config.json
   const possiblePaths = [
+    // HIGHEST PRIORITY: Use CONFIG_PATH from environment if provided
+    process.env.CONFIG_PATH,
+    // For Electron production - go up from resources/app/server/src
+    path.join(__dirname, '..', '..', '..', '..', 'config.json'),
+    path.join(__dirname, '..', '..', '..', '..', '..', 'config.json'),
+    // Try process working directory
     path.join(process.cwd(), 'config.json'), // Root of running process
+    path.join(process.cwd(), '..', 'config.json'), // One level up
     path.join(__dirname, '..', '..', 'config.json'), // Two levels up from src
     path.join(__dirname, '..', '..', '..', 'config.json'), // Three levels up (for production)
     // Note: process.resourcesPath is not available in Node.js context
@@ -27,47 +34,56 @@ function loadDatabaseConfig() {
 
   // Try each path until we find config.json
   for (const configPath of possiblePaths) {
+    if (!configPath) continue; // Skip null/undefined paths
+
     try {
       console.log('[DB] Trying config.json at:', configPath);
 
-      if (fs.existsSync(configPath)) {
-        const configData = fs.readFileSync(configPath, 'utf8');
-        const configJson = JSON.parse(configData);
+      // Try to read the file directly without existsSync check
+      let configData;
+      try {
+        configData = fs.readFileSync(configPath, 'utf8');
+      } catch (readError) {
+        // File doesn't exist or can't be read, continue to next path
+        continue;
+      }
 
-        if (configJson.database) {
-          console.log('[DB] Found config.json at:', configPath);
-          console.log('[DB] Using database configuration from config.json');
-          console.log('[DB] Database config:', {
-            server: configJson.database.host,
-            database: configJson.database.database,
-            port: configJson.database.port,
-            useWindowsAuth: configJson.database.useWindowsAuth
-          });
+      const configJson = JSON.parse(configData);
 
-          return {
-            server: configJson.database.host,
-            database: configJson.database.database,
-            port: parseInt(configJson.database.port),
-            user: configJson.database.useWindowsAuth ? undefined : configJson.database.user,
-            password: configJson.database.useWindowsAuth ? undefined : configJson.database.password,
-            connectionTimeout: 30000,
-            requestTimeout: 30000,
-            pool: {
-              max: 10,
-              min: 0,
-              idleTimeoutMillis: 30000
-            },
-            options: {
-              encrypt: false,
-              trustServerCertificate: true,
-              enableArithAbort: true,
-              trustedConnection: configJson.database.useWindowsAuth
-            }
-          };
-        }
+      if (configJson.database) {
+        console.log('[DB] ✓ Found config.json at:', configPath);
+        console.log('[DB] ✓ Using database configuration from config.json');
+        console.log('[DB] Database config:', {
+          server: configJson.database.host,
+          database: configJson.database.database,
+          port: configJson.database.port,
+          useWindowsAuth: configJson.database.useWindowsAuth,
+          user: configJson.database.user ? '***' : undefined
+        });
+
+        return {
+          server: configJson.database.host,
+          database: configJson.database.database,
+          port: parseInt(configJson.database.port),
+          user: configJson.database.useWindowsAuth ? undefined : configJson.database.user,
+          password: configJson.database.useWindowsAuth ? undefined : configJson.database.password,
+          connectionTimeout: 30000,
+          requestTimeout: 30000,
+          pool: {
+            max: 10,
+            min: 0,
+            idleTimeoutMillis: 30000
+          },
+          options: {
+            encrypt: false,
+            trustServerCertificate: true,
+            enableArithAbort: true,
+            trustedConnection: configJson.database.useWindowsAuth
+          }
+        };
       }
     } catch (error) {
-      // Continue to next path
+      console.log('[DB] Error reading config at', configPath, ':', error.message);
       continue;
     }
   }

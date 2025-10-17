@@ -2,8 +2,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { getApiUrl } from '../config/api';
 
-const API_BASE_URL = getApiUrl();
-
 export const usePagination = (endpoint = '/merkmalstexte', initialPageSize = 50, filters = {}) => {
   const [data, setData] = useState([]);
   const [pagination, setPagination] = useState({
@@ -48,9 +46,10 @@ export const usePagination = (endpoint = '/merkmalstexte', initialPageSize = 50,
         filters[key] !== ''
       );
       
-      const apiEndpoint = hasFilters && endpoint === '/merkmalstexte' 
-        ? `${API_BASE_URL}/merkmalstexte/filter` 
-        : `${API_BASE_URL}${endpoint}`;
+      const baseUrl = await getApiUrl();
+      const apiEndpoint = hasFilters && endpoint === '/merkmalstexte'
+        ? `${baseUrl}/merkmalstexte/filter`
+        : `${baseUrl}${endpoint}`;
       
       const response = await axios.get(apiEndpoint, { params });
       
@@ -143,9 +142,10 @@ export const usePagination = (endpoint = '/merkmalstexte', initialPageSize = 50,
         filters[key] !== ''
       );
 
+      const baseUrl = await getApiUrl();
       const apiEndpoint = hasFilters && endpoint === '/merkmalstexte'
-        ? `${API_BASE_URL}/merkmalstexte/filter`
-        : `${API_BASE_URL}${endpoint}`;
+        ? `${baseUrl}/merkmalstexte/filter`
+        : `${baseUrl}${endpoint}`;
 
       const response = await axios.get(apiEndpoint, { params });
 

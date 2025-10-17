@@ -9,7 +9,9 @@
     "start": "electron .",
     "dev": "electron . --dev",
     "build": "electron-builder",
-    "build-win": "electron-builder --win --publish=never"
+    "build-win": "electron-builder --win --publish=never",
+    "build-portable": "electron-builder --win portable --publish=never",
+    "package-win": "electron-packager . MerkmalVerwaltung --platform=win32 --arch=x64 --out=dist --overwrite"
   },
   "build": {
     "appId": "com.desktop.merkmalverwaltung",
@@ -45,6 +47,7 @@
       "publish": null,
       "verifyUpdateCodeSignature": false,
       "signDlls": false,
+      "sign": false,
       "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
@@ -56,7 +59,8 @@
   },
   "devDependencies": {
     "electron": "^26.0.0",
-    "electron-builder": "^24.6.4"
+    "electron-builder": "^24.6.4",
+    "electron-packager": "^17.1.2"
   },
   "keywords": [
     "electron",

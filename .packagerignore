@@ -1,0 +1,52 @@
+# Ignore development files
+.git
+.gitignore
+.env
+*.log
+.DS_Store
+.vscode
+.idea
+
+# Ignore root node_modules (contains dev dependencies)
+/node_modules
+
+# Ignore client source files (keep only the built output)
+client2/src
+client2/pages
+client2/components
+client2/hooks
+client2/utils
+client2/config
+client2/styles
+client2/public
+client2/package.json
+client2/package-lock.json
+client2/next.config.js
+client2/tailwind.config.js
+client2/postcss.config.js
+client2/.next
+client2/node_modules
+
+# Ignore documentation
+*.md
+docs
+README.md
+DEVELOPMENT_SETUP.md
+
+# Ignore build artifacts
+dist
+build
+.cache
+
+# Ignore test files
+*.test.js
+*.spec.js
+__tests__
+test
+
+# Server - keep only essentials
+server/.env
+server/.env.example
+server/package-lock.json
+server/README.md
+server/docs

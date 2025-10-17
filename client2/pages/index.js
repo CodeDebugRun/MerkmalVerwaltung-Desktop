@@ -159,17 +159,17 @@ export default function Home() {
   const [customFilterIdentnr, setCustomFilterIdentnr] = useState('');
   const [allIdentnrs, setAllIdentnrs] = useState([]); // Will load from API
 
-  // API Base
-  const API_BASE = getApiUrl('/merkmalstexte');
-  const BASE_URL = getApiUrl();
+  // API Base - will be initialized in useEffect
+  const [API_BASE, setAPI_BASE] = useState('');
+  const [BASE_URL, setBASE_URL] = useState('');
 
   // Data fetching with centralized error handling
   const fetchMerkmalstexte = async (forceRefresh = false) => {
     const result = await safeApiCall(
       async () => {
         const apiUrl = forceRefresh
-          ? getApiUrlWithCacheBust('/grouped/merkmalstexte')
-          : `${getApiUrl()}/grouped/merkmalstexte`;
+          ? await getApiUrlWithCacheBust('/grouped/merkmalstexte')
+          : await getApiUrl('/grouped/merkmalstexte');
 
         const fetchOptions = forceRefresh
           ? { cache: 'no-cache', headers: { 'Cache-Control': 'no-cache' } }
@@ -305,8 +305,19 @@ export default function Home() {
 
   // Initialize data and settings
   useEffect(() => {
-    fetchMerkmalstexte();
-    fetchAllIdentnrs();
+    // Initialize API URLs
+    const initializeApiUrls = async () => {
+      const baseUrl = await getApiUrl();
+      const apiBase = await getApiUrl('/merkmalstexte');
+      setBASE_URL(baseUrl);
+      setAPI_BASE(apiBase);
+
+      // Fetch data after URLs are ready
+      fetchMerkmalstexte();
+      fetchAllIdentnrs();
+    };
+
+    initializeApiUrls();
 
     // Dark mode is handled by the useDarkMode hook
   }, []);
@@ -532,7 +543,7 @@ export default function Home() {
 
       // In grouped view, always use bulk endpoint (even for single record groups)
       // because item.id is row number, not database ID
-      response = await fetch(`${getApiUrl()}/grouped/merkmalstexte/bulk-delete-group`, {
+      response = await fetch(`${await getApiUrl()}/grouped/merkmalstexte/bulk-delete-group`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -648,7 +659,7 @@ export default function Home() {
       // Use bulk copy endpoint to ensure same position for all identnrs
       if (identnrsToAdd.length > 0) {
 
-        const copyResponse = await fetch(`${getApiUrl()}/grouped/merkmalstexte/create-from-copy`, {
+        const copyResponse = await fetch(`${await getApiUrl()}/grouped/merkmalstexte/create-from-copy`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -767,7 +778,7 @@ export default function Home() {
       };
 
       // Call copy API
-      const response = await fetch(`${getApiUrl()}/grouped/merkmalstexte/copy-group`, {
+      const response = await fetch(`${await getApiUrl()}/grouped/merkmalstexte/copy-group`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
