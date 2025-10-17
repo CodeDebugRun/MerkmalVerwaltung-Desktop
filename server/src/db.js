@@ -6,47 +6,73 @@ require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 // Function to load config from config.json if available, otherwise use .env
 function loadDatabaseConfig() {
   console.log('[DB] Current directory:', __dirname);
+  console.log('[DB] Process CWD:', process.cwd());
 
-  // NODE_ENV kontrolü OLMADAN direkt config.json'ı okumaya çalış
-  try {
-    const configPath = path.join(__dirname, '..', '..', 'config.json');
-    console.log('[DB] Looking for config.json at:', configPath);
+  // Try multiple possible locations for config.json
+  const possiblePaths = [
+    path.join(process.cwd(), 'config.json'), // Root of running process
+    path.join(__dirname, '..', '..', 'config.json'), // Two levels up from src
+    path.join(__dirname, '..', '..', '..', 'config.json'), // Three levels up (for production)
+    // Note: process.resourcesPath is not available in Node.js context
+    // These paths will be handled by other checks
+    // For packaged Electron apps - look next to the executable
+    process.platform === 'win32' && process.env.PORTABLE_EXECUTABLE_DIR
+      ? path.join(process.env.PORTABLE_EXECUTABLE_DIR, 'config.json')
+      : null,
+    // Check app data directory
+    process.env.APPDATA ? path.join(process.env.APPDATA, 'merkmal-verwaltung', 'config.json') : null,
+    // For production builds
+    path.join(path.dirname(process.execPath || process.argv[0]), 'config.json')
+  ].filter(p => p !== null); // Remove null paths
 
-    const configData = fs.readFileSync(configPath, 'utf8');
-    const configJson = JSON.parse(configData);
+  // Try each path until we find config.json
+  for (const configPath of possiblePaths) {
+    try {
+      console.log('[DB] Trying config.json at:', configPath);
 
-    if (configJson.database) {
-      console.log('[DB] Using database configuration from config.json');
-      console.log('[DB] Database config:', {
-        server: configJson.database.host,
-        database: configJson.database.database,
-        port: configJson.database.port,
-        useWindowsAuth: configJson.database.useWindowsAuth
-      });
-      return {
-        server: configJson.database.host,
-        database: configJson.database.database,
-        port: parseInt(configJson.database.port),
-        user: configJson.database.useWindowsAuth ? undefined : configJson.database.user,
-        password: configJson.database.useWindowsAuth ? undefined : configJson.database.password,
-        connectionTimeout: 30000,
-        requestTimeout: 30000,
-        pool: {
-          max: 10,
-          min: 0,
-          idleTimeoutMillis: 30000
-        },
-        options: {
-          encrypt: false,
-          trustServerCertificate: true,
-          enableArithAbort: true,
-          trustedConnection: configJson.database.useWindowsAuth
+      if (fs.existsSync(configPath)) {
+        const configData = fs.readFileSync(configPath, 'utf8');
+        const configJson = JSON.parse(configData);
+
+        if (configJson.database) {
+          console.log('[DB] Found config.json at:', configPath);
+          console.log('[DB] Using database configuration from config.json');
+          console.log('[DB] Database config:', {
+            server: configJson.database.host,
+            database: configJson.database.database,
+            port: configJson.database.port,
+            useWindowsAuth: configJson.database.useWindowsAuth
+          });
+
+          return {
+            server: configJson.database.host,
+            database: configJson.database.database,
+            port: parseInt(configJson.database.port),
+            user: configJson.database.useWindowsAuth ? undefined : configJson.database.user,
+            password: configJson.database.useWindowsAuth ? undefined : configJson.database.password,
+            connectionTimeout: 30000,
+            requestTimeout: 30000,
+            pool: {
+              max: 10,
+              min: 0,
+              idleTimeoutMillis: 30000
+            },
+            options: {
+              encrypt: false,
+              trustServerCertificate: true,
+              enableArithAbort: true,
+              trustedConnection: configJson.database.useWindowsAuth
+            }
+          };
         }
-      };
+      }
+    } catch (error) {
+      // Continue to next path
+      continue;
     }
-  } catch (error) {
-    console.log('[DB] Config.json not found or invalid, using .env file');
   }
+
+  console.log('[DB] Config.json not found in any location, using .env file');
 
   // Fallback to .env configuration
   console.log('[DB] Using database configuration from .env file');

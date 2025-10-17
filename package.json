@@ -14,6 +14,7 @@
   "build": {
     "appId": "com.desktop.merkmalverwaltung",
     "productName": "Merkmal Verwaltung",
+    "forceCodeSigning": false,
     "directories": {
       "output": "dist"
     },
@@ -42,8 +43,9 @@
         }
       ],
       "publish": null,
-      "sign": null,
-      "requestedExecutionLevel": "requireAdministrator"
+      "verifyUpdateCodeSignature": false,
+      "signDlls": false,
+      "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
       "oneClick": false,

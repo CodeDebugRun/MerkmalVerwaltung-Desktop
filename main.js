@@ -367,7 +367,10 @@ process.on('SIGTERM', () => {
 });
 
 // Configuration management
-const CONFIG_FILE = path.join(__dirname, 'config.json');
+// In production, save config next to the executable for persistence
+const CONFIG_FILE = app.isPackaged
+  ? path.join(path.dirname(app.getPath('exe')), 'config.json')
+  : path.join(__dirname, 'config.json');
 
 // Default database configuration
 const DEFAULT_DB_CONFIG = {
@@ -382,12 +385,15 @@ const DEFAULT_DB_CONFIG = {
 // Load configuration from file
 async function loadDatabaseConfig() {
   try {
+    console.log('[MAIN] Loading config from:', CONFIG_FILE);
     const configData = await fs.readFile(CONFIG_FILE, 'utf8');
     const config = JSON.parse(configData);
+    console.log('[MAIN] Config loaded successfully');
     return { ...DEFAULT_DB_CONFIG, ...config.database };
   } catch (error) {
     // If config file doesn't exist or is invalid, return defaults
-    console.log('Config file not found, using defaults:', error.message);
+    console.log('[MAIN] Config file not found at:', CONFIG_FILE);
+    console.log('[MAIN] Using default configuration');
     return DEFAULT_DB_CONFIG;
   }
 }
@@ -395,6 +401,16 @@ async function loadDatabaseConfig() {
 // Save configuration to file
 async function saveDatabaseConfig(dbConfig) {
   try {
+    console.log('[MAIN] Saving config to:', CONFIG_FILE);
+
+    // Ensure directory exists (important for production)
+    const configDir = path.dirname(CONFIG_FILE);
+    try {
+      await fs.mkdir(configDir, { recursive: true });
+    } catch (e) {
+      // Directory might already exist, that's okay
+    }
+
     let config = {};
 
     // Try to load existing config first
@@ -403,6 +419,7 @@ async function saveDatabaseConfig(dbConfig) {
       config = JSON.parse(existingConfigData);
     } catch (error) {
       // File doesn't exist or is invalid, start with empty config
+      console.log('[MAIN] No existing config found, creating new one');
       config = {};
     }
 
@@ -411,11 +428,11 @@ async function saveDatabaseConfig(dbConfig) {
 
     // Write to file
     await fs.writeFile(CONFIG_FILE, JSON.stringify(config, null, 2));
-    console.log('Database configuration saved to:', CONFIG_FILE);
+    console.log('[MAIN] Database configuration saved successfully to:', CONFIG_FILE);
 
     return { success: true, message: 'Konfiguration erfolgreich gespeichert' };
   } catch (error) {
-    console.error('Failed to save configuration:', error);
+    console.error('[MAIN] Failed to save configuration:', error);
     throw new Error('Fehler beim Speichern der Konfiguration: ' + error.message);
   }
 }
